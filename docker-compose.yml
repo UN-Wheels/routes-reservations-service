@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+
+  tracking-service:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/trackingdb
+      - JWT_SECRET=supersecretkey
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo
+    container_name: tracking-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
