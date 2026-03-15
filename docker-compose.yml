@@ -2,19 +2,19 @@ version: "3.9"
 
 services:
 
-  tracking-service:
-    build: .
+  routes-reservations-service:
+    build: ./routes-reservations-service
     ports:
       - "4000:4000"
     environment:
-      - MONGO_URI=mongodb://mongo:27017/trackingdb
+      - MONGO_URI=mongodb://mongo:27017/routesdb
       - JWT_SECRET=supersecretkey
     depends_on:
       - mongo
 
   mongo:
     image: mongo
-    container_name: tracking-mongo
+    container_name: routes-mongo
     ports:
       - "27017:27017"
     volumes:
