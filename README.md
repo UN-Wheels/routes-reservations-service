@@ -3,8 +3,27 @@
 ## Descripción General
 
 El **Routes & Reservations Service** es un microservicio encargado de
-gestionar la creación de rutas y la administración completa del ciclo de
-vida de reservas dentro del sistema **UniWheels**.
+gestionar la creación de rutas de transporte y la reserva de asientos
+dentro del sistema **UniWheels**, una plataforma diseñada para facilitar
+el transporte compartido entre estudiantes universitarios.
+
+Este servicio permite a los conductores publicar rutas hacia el campus
+universitario y a los pasajeros buscar rutas disponibles y reservar un
+asiento en ellas. Además, se encarga de actualizar automáticamente la
+disponibilidad de asientos y manejar cancelaciones de reservas.
+
+El microservicio forma parte de una arquitectura basada en
+**microservicios**, donde cada servicio se especializa en una
+responsabilidad específica del sistema, permitiendo una mayor
+escalabilidad, mantenibilidad y desacoplamiento entre componentes.
+
+### Funcionalidades principales
+
+-   Creación de rutas por parte de conductores
+-   Consulta de rutas disponibles
+-   Creación de reservas de asientos
+-   Cancelación de reservas
+-   Actualización automática de la disponibilidad de asientos
 
 ------------------------------------------------------------------------
 
@@ -47,29 +66,136 @@ sequenceDiagram
 
 # Tecnologías
 
+### Backend
+
 -   Node.js
 -   Express.js
+
+### Base de datos
+
 -   MongoDB
 -   Mongoose
--   JWT
+
+### Seguridad
+
+-   JSON Web Token (JWT)
+
+### Infraestructura
+
 -   Docker
+-   Docker Compose
+
+### Librerías adicionales
+
+-   dotenv
+-   cors
 
 ------------------------------------------------------------------------
 
+# Modelo de Datos
+
+## Route
+
+``` json
+{
+  "driverId": "string",
+  "origin": {
+    "name": "string",
+    "lat": "number",
+    "lng": "number"
+  },
+  "destination": {
+    "name": "string",
+    "lat": "number",
+    "lng": "number"
+  },
+  "departureTime": "date",
+  "totalSeats": "number",
+  "availableSeats": "number",
+  "status": "ACTIVE | CANCELLED"
+}
+```
+
+## Reservation
+
+``` json
+{
+  "routeId": "ObjectId",
+  "passengerId": "string",
+  "status": "PENDING | ACCEPTED | REJECTED | CANCELLED",
+}
+```
+
+# Estructura del Proyecto
+
+    routes-reservations-service/
+    │
+    ├── src/
+    │
+    ├── config/
+    │   └── db.js
+    │
+    ├── controllers/
+    │   ├── routeController.js
+    │   └── reservationController.js
+    │
+    ├── middleware/
+    │   └── auth.js
+    │
+    ├── models/
+    │   ├── Route.js
+    │   └── Reservation.js
+    │
+    ├── routes/
+    │   ├── routeRoutes.js
+    │   └── reservationRoutes.js
+    │
+    ├── services/
+    │   ├── routeService.js
+    │   └── reservationService.js
+    │
+    └── server.js
+    │
+    ├── Dockerfile
+    ├── package.json
+    └── README.md
+
+------------------------------------------------------------------------
+
+
 # Endpoints
 
-## Rutas
+## 🚗 Rutas
 
--   POST /routes
--   DELETE /routes/:id
--   GET /routes/available
+### Publicar ruta
 
-## Reservas
+POST /routes → Publicar ruta
 
--   POST /reservations/request
--   PATCH /reservations/:id/accept
--   PATCH /reservations/:id/reject
--   DELETE /reservations/:id
+### Cancelar rutas
+
+DELETE /routes/:id → Cancelar ruta
+
+### Obtener rutas disponibles
+
+GET /routes/available → Obtener rutas disponibles
+
+## 🎫 Reservas
+
+### Solicitar reserva
+
+POST /reservations/request → Solicitar reserva
+
+### Aceptar solicitud
+
+PATCH /reservations/:id/accept → Aceptar solicitud
+
+### Rechazar solicitud
+
+PATCH /reservations/:id/reject → Rechazar solicitud
+
+### Cancelar reserva
+
+DELETE /reservations/:id → Cancelar reserva  
 
 ------------------------------------------------------------------------
 
