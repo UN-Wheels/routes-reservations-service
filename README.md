@@ -179,6 +179,8 @@ Requerida (JWT en header)
 
 Authorization: Bearer <TOKEN>
 📥 Body
+
+``` json
 {
   "origin": {
     "name": "Chapinero",
@@ -193,6 +195,8 @@ Authorization: Bearer <TOKEN>
   "departureTime": "2026-03-20T07:30:00",
   "totalSeats": 4
 }
+```
+
 ⚙️ Lógica interna
 Extrae el driverId desde el token
 Crea una nueva ruta con:
@@ -200,6 +204,7 @@ availableSeats = totalSeats
 status = ACTIVE
 Guarda en MongoDB
 📤 Respuesta
+``` json
 {
   "_id": "routeId",
   "driverId": "driver123",
@@ -210,7 +215,7 @@ Guarda en MongoDB
   "availableSeats": 4,
   "status": "ACTIVE"
 }
-
+```
 ### Cancelar rutas
 
 DELETE /routes/:id 
@@ -232,10 +237,14 @@ Opcionalmente:
 Notifica a los pasajeros con reservas activas
 Cancela automáticamente las reservas asociadas
 📤 Respuesta
+
+``` json
 {
   "_id": "routeId",
   "status": "CANCELLED"
 }
+```
+
 ⚠️ Validaciones
 Solo el conductor creador puede cancelar la ruta
 No se puede cancelar una ruta ya finalizada o cancelada
@@ -254,6 +263,8 @@ No requerida
 Filtra rutas con status = ACTIVE
 Retorna lista completa
 📤 Respuesta
+
+``` json
 [
   {
     "_id": "routeId",
@@ -262,6 +273,7 @@ Retorna lista completa
     "availableSeats": 3
   }
 ]
+```
 
 ## 🎫 Reservas
 
@@ -277,9 +289,13 @@ Requerida
 
 Authorization: Bearer <TOKEN>
 📥 Body
+
+```json
 {
   "routeId": "65f0c2bfa29a0b6c0d0a1234"
 }
+```
+
 ⚙️ Lógica interna
 Verifica que la ruta exista
 Verifica disponibilidad de asientos
@@ -289,6 +305,8 @@ Reduce availableSeats en la ruta
 Si no existe la ruta → error
 Si no hay cupos → error
 📤 Respuesta
+
+```json
 {
   "_id": "reservationId",
   "routeId": "65f0c2bfa29a0b6c0d0a1234",
@@ -296,6 +314,7 @@ Si no hay cupos → error
   "status": "PENDING",
   "createdAt": "2026-03-20T07:00:00"
 }
+```
 
 ### Aceptar solicitud
 
@@ -315,10 +334,14 @@ Verifica que la reserva exista
 Verifica que el usuario autenticado sea el conductor de la ruta asociada
 Cambia el estado de la reserva a CONFIRMED
 📤 Respuesta
+
+```json
 {
   "_id": "reservationId",
   "status": "CONFIRMED"
 }
+```
+
 ⚠️ Validaciones
 Solo el conductor puede aceptar solicitudes
 No se puede aceptar una reserva ya procesada
@@ -342,10 +365,14 @@ Verifica que el usuario autenticado sea el conductor de la ruta
 Cambia el estado de la reserva a REJECTED
 Libera el cupo (incrementa availableSeats si ya se había reservado)
 📤 Respuesta
+
+```json
 {
   "_id": "reservationId",
   "status": "REJECTED"
 }
+```
+
 ⚠️ Validaciones
 Solo el conductor puede rechazar solicitudes
 No se puede rechazar una reserva ya confirmada o cancelada
@@ -367,38 +394,42 @@ Busca la reserva
 Cambia estado a CANCELLED
 Incrementa availableSeats en la ruta
 📤 Respuesta
+
+```json
 {
   "_id": "reservationId",
   "status": "CANCELLED"
 }
+```
 ⚠️ Manejo de Errores
 Ejemplos comunes
 Ruta no encontrada
+
+```json
 {
   "error": "Route not found"
 }
+```
+
 Sin cupos disponibles
+
+```json
 {
   "error": "No seats available"
 }
+```
+
 Token inválido
+
+```json
 {
   "message": "Invalid token"
 }
+```
+
 🔐 Notas de Seguridad
 Todos los endpoints protegidos usan JWT
 El user.id se obtiene del token
-Se recomienda validar roles:
-driver → crear rutas
-passenger → crear reservas
-🚀 Recomendación Técnica (Importante)
-
-Para evitar sobreventa de cupos en escenarios concurrentes, usar operación atómica:
-
-Route.findOneAndUpdate(
-  { _id: routeId, availableSeats: { $gt: 0 } },
-  { $inc: { availableSeats: -1 } }
-);
 ------------------------------------------------------------------------
 
 # Variables de Entorno
