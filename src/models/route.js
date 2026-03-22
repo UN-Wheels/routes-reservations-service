@@ -22,6 +22,7 @@ const RouteSchema = new mongoose.Schema({
 
   status: {
     type: String,
+    enum: ["ACTIVE", "CANCELLED"],
     default: "ACTIVE"
   }
 });

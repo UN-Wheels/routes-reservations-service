@@ -1,19 +1,32 @@
-const Route = require("../models/route");
+const Route = require("../models/Route");
 
+// 🟢 Publicar ruta
 exports.createRoute = async (data, driverId) => {
-
-  const route = new Route({
+  return await Route.create({
+    ...data,
     driverId,
-    origin: data.origin,
-    destination: data.destination,
-    departureTime: data.departureTime,
-    totalSeats: data.totalSeats,
     availableSeats: data.totalSeats
   });
-
-  return await route.save();
 };
 
-exports.getRoutes = async () => {
-  return await Route.find({ status: "ACTIVE" });
+// ❌ Cancelar ruta
+exports.cancelRoute = async (routeId, driverId) => {
+  const route = await Route.findById(routeId);
+
+  if (route.driverId !== driverId) {
+    throw new Error("Unauthorized");
+  }
+
+  route.status = "CANCELLED";
+  await route.save();
+
+  return route;
+};
+
+// 🔎 Obtener rutas disponibles (SIN 0 CUPOS)
+exports.getAvailableRoutes = async () => {
+  return await Route.find({
+    status: "ACTIVE",
+    availableSeats: { $gt: 0 }
+  });
 };

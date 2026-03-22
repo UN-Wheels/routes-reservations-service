@@ -1,38 +1,53 @@
-const reservationService = require("../services/reservationService");
+const service = require("../services/reservationService");
 
-exports.createReservation = async (req, res) => {
-
+// Solicitar
+exports.request = async (req, res) => {
   try {
-
-    const passengerId = req.user.id;
-
-    const reservation = await reservationService.createReservation(
+    const result = await service.requestReservation(
       req.body.routeId,
-      passengerId
+      req.user.id
     );
-
-    res.json(reservation);
-
-  } catch (err) {
-
-    res.status(500).json({ error: err.message });
-
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 };
 
-exports.cancelReservation = async (req, res) => {
-
+// Aceptar
+exports.accept = async (req, res) => {
   try {
-
-    const reservation = await reservationService.cancelReservation(
-      req.params.id
+    const result = await service.acceptReservation(
+      req.params.id,
+      req.user.id
     );
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
 
-    res.json(reservation);
+// Rechazar
+exports.reject = async (req, res) => {
+  try {
+    const result = await service.rejectReservation(
+      req.params.id,
+      req.user.id
+    );
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+};
 
-  } catch (err) {
-
-    res.status(500).json({ error: err.message });
-
+// Cancelar
+exports.cancel = async (req, res) => {
+  try {
+    const result = await service.cancelReservation(
+      req.params.id,
+      req.user.id
+    );
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 };
