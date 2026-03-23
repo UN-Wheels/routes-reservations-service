@@ -2,7 +2,7 @@ const service = require("../services/reservationService");
 
 
 // 🟡 Solicitar reserva (PASAJERO)
-exports.request = async (req, res) => {
+exports.requestReservation = async (req, res) => {
   try {
     const result = await service.requestReservation(
       req.body.routeId,
@@ -15,7 +15,7 @@ exports.request = async (req, res) => {
 };
 
 // 🟢 Aceptar solicitud (CONDUCTOR)
-exports.accept = async (req, res) => {
+exports.acceptReservation = async (req, res) => {
   try {
     const result = await service.acceptReservation(
       req.params.id,
@@ -28,7 +28,7 @@ exports.accept = async (req, res) => {
 };
 
 // 🔴 Rechazar solicitud (CONDUCTOR)
-exports.reject = async (req, res) => {
+exports.rejectReservation = async (req, res) => {
   try {
     const result = await service.rejectReservation(
       req.params.id,
@@ -41,7 +41,7 @@ exports.reject = async (req, res) => {
 };
 
 // ❌ Cancelar reserva (PASAJERO)
-exports.cancel = async (req, res) => {
+exports.cancelReservation = async (req, res) => {
   try {
     const result = await service.cancelReservation(
       req.params.id,
