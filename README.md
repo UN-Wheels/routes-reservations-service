@@ -198,11 +198,17 @@ Authorization: Bearer <TOKEN>
 ```
 
 ⚙️ Lógica interna
+
 Extrae el driverId desde el token
+
 Crea una nueva ruta con:
+
 availableSeats = totalSeats
+
 status = ACTIVE
+
 Guarda en MongoDB
+
 📤 Respuesta
 ``` json
 {
@@ -227,15 +233,25 @@ Permite a un conductor cancelar una ruta previamente creada.
 Requerida (JWT)
 
 Authorization: Bearer <TOKEN>
+
 📌 Parámetro
+
 id: ID de la ruta a cancelar
+
 ⚙️ Lógica interna
+
 Verifica que la ruta exista
+
 Verifica que el usuario autenticado sea el conductor dueño de la ruta
+
 Cambia el estado de la ruta a CANCELLED
+
 Opcionalmente:
+
 Notifica a los pasajeros con reservas activas
+
 Cancela automáticamente las reservas asociadas
+
 📤 Respuesta
 
 ``` json
@@ -246,7 +262,9 @@ Cancela automáticamente las reservas asociadas
 ```
 
 ⚠️ Validaciones
+
 Solo el conductor creador puede cancelar la ruta
+
 No se puede cancelar una ruta ya finalizada o cancelada
 
 ### Obtener rutas disponibles
@@ -260,8 +278,11 @@ Permite consultar todas las rutas activas disponibles en el sistema.
 No requerida
 
 ⚙️ Lógica interna
+
 Filtra rutas con status = ACTIVE
+
 Retorna lista completa
+
 📤 Respuesta
 
 ``` json
@@ -288,6 +309,7 @@ Permite a un pasajero reservar un asiento en una ruta.
 Requerida
 
 Authorization: Bearer <TOKEN>
+
 📥 Body
 
 ```json
@@ -297,13 +319,21 @@ Authorization: Bearer <TOKEN>
 ```
 
 ⚙️ Lógica interna
+
 Verifica que la ruta exista
+
 Verifica disponibilidad de asientos
+
 Crea la reserva
+
 Reduce availableSeats en la ruta
+
 ⚠️ Validaciones
+
 Si no existe la ruta → error
+
 Si no hay cupos → error
+
 📤 Respuesta
 
 ```json
@@ -327,12 +357,19 @@ Permite al conductor aceptar una solicitud de reserva realizada por un pasajero.
 Requerida
 
 Authorization: Bearer <TOKEN>
+
 📌 Parámetro
+
 id: ID de la reserva
+
 ⚙️ Lógica interna
+
 Verifica que la reserva exista
+
 Verifica que el usuario autenticado sea el conductor de la ruta asociada
+
 Cambia el estado de la reserva a CONFIRMED
+
 📤 Respuesta
 
 ```json
@@ -343,7 +380,9 @@ Cambia el estado de la reserva a CONFIRMED
 ```
 
 ⚠️ Validaciones
+
 Solo el conductor puede aceptar solicitudes
+
 No se puede aceptar una reserva ya procesada
 
 ### Rechazar solicitud
@@ -357,13 +396,21 @@ Permite al conductor rechazar una solicitud de reserva.
 Requerida
 
 Authorization: Bearer <TOKEN>
+
 📌 Parámetro
+
 id: ID de la reserva
+
 ⚙️ Lógica interna
+
 Verifica que la reserva exista
+
 Verifica que el usuario autenticado sea el conductor de la ruta
+
 Cambia el estado de la reserva a REJECTED
+
 Libera el cupo (incrementa availableSeats si ya se había reservado)
+
 📤 Respuesta
 
 ```json
@@ -374,7 +421,9 @@ Libera el cupo (incrementa availableSeats si ya se había reservado)
 ```
 
 ⚠️ Validaciones
+
 Solo el conductor puede rechazar solicitudes
+
 No se puede rechazar una reserva ya confirmada o cancelada
 
 ### Cancelar reserva
@@ -388,11 +437,17 @@ Permite cancelar una reserva existente.
 Requerida
 
 📌 Parámetro
+
 id: ID de la reserva
+
 ⚙️ Lógica interna
+
 Busca la reserva
+
 Cambia estado a CANCELLED
+
 Incrementa availableSeats en la ruta
+
 📤 Respuesta
 
 ```json
@@ -402,7 +457,9 @@ Incrementa availableSeats en la ruta
 }
 ```
 ⚠️ Manejo de Errores
+
 Ejemplos comunes
+
 Ruta no encontrada
 
 ```json
@@ -428,7 +485,9 @@ Token inválido
 ```
 
 🔐 Notas de Seguridad
+
 Todos los endpoints protegidos usan JWT
+
 El user.id se obtiene del token
 ------------------------------------------------------------------------
 
