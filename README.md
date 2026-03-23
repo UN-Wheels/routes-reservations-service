@@ -301,7 +301,7 @@ Retorna lista completa
 
 ### Solicitar reserva
 
-POST /reservations/request → Solicitar reserva
+POST /reservations/request 
 
 Permite a un pasajero reservar un asiento en una ruta.
 
@@ -349,7 +349,7 @@ Si no hay cupos → error
 
 ### Aceptar solicitud
 
-PATCH /reservations/:id/accept → Aceptar solicitud
+PATCH /reservations/:id/accept 
 
 Permite al conductor aceptar una solicitud de reserva realizada por un pasajero.
 
@@ -388,7 +388,7 @@ No se puede aceptar una reserva ya procesada
 
 ### Rechazar solicitud
 
-PATCH /reservations/:id/reject → Rechazar solicitud
+PATCH /reservations/:id/reject 
 
 Permite al conductor rechazar una solicitud de reserva.
 
