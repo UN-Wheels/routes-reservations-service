@@ -1,6 +1,6 @@
 const Route = require("../models/Route");
 
-// 🟢 Publicar ruta
+// 🟢 Publicar ruta (CONDUCTOR)
 exports.createRoute = async (data, driverId) => {
   return await Route.create({
     ...data,
@@ -9,7 +9,7 @@ exports.createRoute = async (data, driverId) => {
   });
 };
 
-// ❌ Cancelar ruta
+// ❌ Cancelar ruta (CONDUCTOR)
 exports.cancelRoute = async (routeId, driverId) => {
   const route = await Route.findById(routeId);
 

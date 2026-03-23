@@ -1,7 +1,7 @@
 const Reservation = require("../models/Reservation");
 const Route = require("../models/Route");
 
-// 🟡 Solicitar reserva
+// 🟡 Solicitar reserva (PASAJERO)
 exports.requestReservation = async (routeId, passengerId) => {
   const route = await Route.findById(routeId);
 
@@ -37,7 +37,7 @@ exports.acceptReservation = async (reservationId, driverId) => {
   return reservation;
 };
 
-// 🔴 Rechazar solicitud
+// 🔴 Rechazar solicitud (CONDUCTOR)
 exports.rejectReservation = async (reservationId, driverId) => {
   const reservation = await Reservation.findById(reservationId);
   const route = await Route.findById(reservation.routeId);
@@ -52,7 +52,7 @@ exports.rejectReservation = async (reservationId, driverId) => {
   return reservation;
 };
 
-// ❌ Cancelar reserva (usuario)
+// ❌ Cancelar reserva (PASAJERO)
 exports.cancelReservation = async (reservationId, userId) => {
   const reservation = await Reservation.findById(reservationId);
   const route = await Route.findById(reservation.routeId);

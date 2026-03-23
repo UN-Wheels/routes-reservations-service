@@ -3,7 +3,7 @@ version: "3.9"
 services:
 
   routes-reservations-service:
-    build: ./routes-reservations-service
+    build: .
     ports:
       - "4000:4000"
     environment:
