@@ -178,6 +178,7 @@ Permite a un conductor autenticado crear una nueva ruta de transporte.
 Requerida (JWT en header)
 
 Authorization: Bearer <TOKEN>
+
 📥 Body
 
 ``` json
@@ -489,6 +490,7 @@ Token inválido
 Todos los endpoints protegidos usan JWT
 
 El user.id se obtiene del token
+
 ------------------------------------------------------------------------
 
 # Variables de Entorno
