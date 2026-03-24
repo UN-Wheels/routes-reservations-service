@@ -24,7 +24,7 @@ exports.cancelRoute = async (routeId, driverId) => {
 };
 
 // 🔎 Obtener rutas disponibles (SIN 0 CUPOS)
-exports.getAvailableRoutes = async () => {
+exports.getRoutes = async () => {
   return await Route.find({
     status: "ACTIVE",
     availableSeats: { $gt: 0 }
