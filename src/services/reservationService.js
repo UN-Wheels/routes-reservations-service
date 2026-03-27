@@ -28,7 +28,7 @@ exports.acceptReservation = async (reservationId, driverId) => {
     throw new Error("No seats available");
   }
 
-  reservation.status = "ACCEPTED";
+  reservation.status = "CONFIRMED";
   route.availableSeats -= 1;
 
   await reservation.save();
@@ -61,7 +61,7 @@ exports.cancelReservation = async (reservationId, userId) => {
     throw new Error("Unauthorized");
   }
 
-  if (reservation.status === "ACCEPTED") {
+  if (reservation.status === "CONFIRMED") {
     route.availableSeats += 1;
     await route.save();
   }
