@@ -220,7 +220,45 @@ Guarda en MongoDB
   "departureTime": "2026-03-20T07:30:00",
   "totalSeats": 4,
   "availableSeats": 4,
-  "status": "ACTIVE"
+  "status": "ACTIVE",
+  "mapLinks": {
+    "googleMaps": "https://www.google.com/maps/dir/?api=1&origin=4.6486,-74.0651&destination=4.6351,-74.0703&travelmode=driving",
+    "appleMaps": "https://maps.apple.com/?saddr=4.6486,-74.0651&daddr=4.6351,-74.0703&dirflg=d"
+  },
+  "routePreview": {
+    "type": "LineString",
+    "coordinates": [
+      [-74.0651, 4.6486],
+      [-74.0703, 4.6351]
+    ]
+  }
+}
+```
+
+### Obtener ruta por ID
+
+GET /routes/:id
+
+Devuelve una ruta individual con los mismos campos anteriores, incluyendo `mapLinks` y `routePreview` para abrirla en Google Maps, Apple Maps, o dibujarla en un mapa del frontend.
+
+📤 Respuesta
+
+``` json
+{
+  "_id": "routeId",
+  "origin": {...},
+  "destination": {...},
+  "mapLinks": {
+    "googleMaps": "https://www.google.com/maps/dir/?api=1&origin=4.6486,-74.0651&destination=4.6351,-74.0703&travelmode=driving",
+    "appleMaps": "https://maps.apple.com/?saddr=4.6486,-74.0651&daddr=4.6351,-74.0703&dirflg=d"
+  },
+  "routePreview": {
+    "type": "LineString",
+    "coordinates": [
+      [-74.0651, 4.6486],
+      [-74.0703, 4.6351]
+    ]
+  }
 }
 ```
 ### Cancelar rutas

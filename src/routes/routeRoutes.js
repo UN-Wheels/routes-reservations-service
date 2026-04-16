@@ -5,6 +5,7 @@ const auth = require("../middleware/auth");
 
 router.post("/", auth, controller.createRoute);
 router.get("/available", controller.getRoutes);
+router.get("/:id", controller.getRouteById);
 router.delete("/:id", auth, controller.cancelRoute);
 
 module.exports = router;

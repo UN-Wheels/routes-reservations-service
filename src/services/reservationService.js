@@ -1,5 +1,5 @@
-const Reservation = require("../models/Reservation");
-const Route = require("../models/Route");
+const Reservation = require("../models/reservation");
+const Route = require("../models/route");
 
 // 🟡 Solicitar reserva (PASAJERO)
 exports.requestReservation = async (routeId, passengerId) => {

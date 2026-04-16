@@ -23,6 +23,17 @@ exports.getRoutes = async (req, res) => {
   }
 };
 
+// 🔎 Obtener una ruta con datos para mapa
+
+exports.getRouteById = async (req, res) => {
+  try {
+    const route = await routeService.getRouteById(req.params.id);
+    res.json(route);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 // ❌ Cancelar ruta (CONDUCTOR)
 
 exports.cancelRoute = async (req, res) => {
