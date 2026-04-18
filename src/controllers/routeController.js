@@ -49,3 +49,35 @@ exports.cancelRoute = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// 🚀 Iniciar ruta y calcular mejor secuencia (CONDUCTOR)
+
+exports.startRoute = async (req, res) => {
+  try {
+    const driverId = req.user.id;
+    const routeId = req.params.id;
+    const route = await routeService.startRoute(routeId, driverId);
+    res.json({
+      message: "Route started successfully with optimized sequence",
+      route
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 📊 Obtener detalles de la ruta optimizada (CONDUCTOR)
+
+exports.getOptimizedRouteDetails = async (req, res) => {
+  try {
+    const driverId = req.user.id;
+    const routeId = req.params.id;
+    const details = await routeService.getOptimizedRouteDetails(
+      routeId,
+      driverId
+    );
+    res.json(details);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

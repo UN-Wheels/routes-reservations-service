@@ -15,6 +15,27 @@ const RouteSchema = new mongoose.Schema({
     lng: Number
   },
 
+  stops: [
+    {
+      passengerId: String,
+      name: String,
+      lat: Number,
+      lng: Number,
+      order: Number,
+      visitedAt: Date
+    }
+  ],
+
+  optimizedRoute: [
+    {
+      type: String, // 'origin', 'stop-{passengerId}', 'destination'
+      lat: Number,
+      lng: Number,
+      name: String,
+      order: Number
+    }
+  ],
+
   departureTime: Date,
 
   totalSeats: Number,
@@ -22,9 +43,12 @@ const RouteSchema = new mongoose.Schema({
 
   status: {
     type: String,
-    enum: ["ACTIVE", "CANCELLED"],
+    enum: ["ACTIVE", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
     default: "ACTIVE"
-  }
+  },
+
+  startedAt: Date,
+  completedAt: Date
 });
 
 module.exports = mongoose.model("Route", RouteSchema);

@@ -1,0 +1,320 @@
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                  GUÍA RÁPIDA - EQUIPO FRONTEND                               ║
+║         Cómo Mostrar la Ruta Optimizada en tu Aplicación                     ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. OBTENER DATOS DEL BACKEND                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Endpoint: GET /routes/{routeId}/optimized
+  
+  Headers requeridos:
+    Authorization: Bearer {token}
+  
+  Respuesta:
+  {
+    optimizedRoute: [
+      { type: "origin", lat: 4.71, lng: -74.07, name: "Casa", order: 0 },
+      { type: "stop-...", lat: 4.71, lng: -74.07, name: "Centro", order: 1 },
+      { type: "destination", lat: 4.71, lng: -74.08, name: "Oficina", order: 2 }
+    ],
+    totalDistanceKm: "3.34",
+    totalDistance: 3340,
+    status: "IN_PROGRESS"
+  }
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. QUÉ MOSTRAR EN CADA PÁGINA                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  📍 PÁGINA DE CONDUCTOR: /driver/routes/{id}
+  ┌────────────────────────────────────────────────┐
+  │  Ruta Optimizada - 3.34 km - 2 paradas       │
+  │                                              │
+  │  ┌──────────────────────────────────────────┐ │
+  │  │   MAPA                                   │ │
+  │  │   (Google Maps con línea azul)           │ │
+  │  │   (Marcadores 1, 2, 3, etc)              │ │
+  │  └──────────────────────────────────────────┘ │
+  │                                              │
+  │  Paradas:                                    │
+  │  1. Casa - 🏠 (Verde)                        │
+  │  2. Centro - 🚶 (Azul)                       │
+  │  3. Oficina - 🎯 (Rojo)                      │
+  │                                              │
+  │  [🚀 Iniciar] [📥 Descargar] [🔄 Recargar]  │
+  └────────────────────────────────────────────────┘
+
+  👤 PÁGINA DE PASAJERO: /passenger/reservation/{id}
+  ┌────────────────────────────────────────────────┐
+  │  Mi Recogida - Centro Comercial              │
+  │  Parada 2 de 3                               │
+  │                                              │
+  │  ┌──────────────────────────────────────────┐ │
+  │  │   MAPA                                   │ │
+  │  │   (Tu parada resaltada en ROJO)          │ │
+  │  │   (Resto de paradas en AZUL)             │ │
+  │  └──────────────────────────────────────────┘ │
+  │                                              │
+  │  Distancia: 3.34 km                          │
+  │  Tiempo: 15 minutos                          │
+  └────────────────────────────────────────────────┘
+
+  📊 DASHBOARD: /driver/dashboard
+  ┌────────────────────────────────────────────────┐
+  │  Ruta #1 - 3.34 km - 2 paradas              │
+  │  [Ver Mapa] [Detalles]                       │
+  │                                              │
+  │  Ruta #2 - 8.50 km - 5 paradas              │
+  │  [🚀 Iniciar] [Ver Detalles]                 │
+  └────────────────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. CÓDIGO MÍNIMO (COPIAR Y PEGAR)                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  REACT:
+  ─────
+  import { useEffect, useState } from 'react';
+
+  function RouteMap({ routeId }) {
+    const [route, setRoute] = useState(null);
+
+    useEffect(() => {
+      fetch(`http://localhost:3000/routes/${routeId}/optimized`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      })
+        .then(r => r.json())
+        .then(setRoute);
+    }, [routeId]);
+
+    if (!route) return <div>Cargando...</div>;
+
+    return (
+      <div>
+        <h2>🗺️ {route.totalDistanceKm} km</h2>
+        <ol>
+          {route.optimizedRoute.map((p, i) => (
+            <li key={i}>{i+1}. {p.name}</li>
+          ))}
+        </ol>
+      </div>
+    );
+  }
+
+
+  VUE:
+  ────
+  <template>
+    <div>
+      <h2>🗺️ {{ route?.totalDistanceKm }} km</h2>
+      <ol>
+        <li v-for="(p, i) in route?.optimizedRoute" :key="i">
+          {{ i+1 }}. {{ p.name }}
+        </li>
+      </ol>
+    </div>
+  </template>
+
+  <script setup>
+  import { ref, onMounted } from 'vue';
+  const route = ref(null);
+  onMounted(async () => {
+    const r = await fetch(
+      `http://localhost:3000/routes/{routeId}/optimized`,
+      { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
+    );
+    route.value = await r.json();
+  });
+  </script>
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 4. ARCHIVOS DE EJEMPLO DISPONIBLES                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  📄 FRONTEND_INTEGRATION_REACT.js
+     └─ Componente React completo con mapa de Google
+        Copiar y adaptar a tu proyecto
+
+  📄 FRONTEND_INTEGRATION_VUE.vue
+     └─ Componente Vue 3 completo con mapa de Google
+        Copiar a carpeta de componentes
+
+  📄 FRONTEND_DISPLAY_ROUTE.html
+     └─ HTML vanilla puro (sin dependencias)
+        Abrir en navegador para ver funcionando
+
+  📄 FRONTEND_CODE_SNIPPETS.md
+     └─ +10 snippets listos para copiar/pegar
+        Diferentes tecnologías y casos de uso
+
+  📄 FRONTEND_INTEGRATION_GUIDE.md
+     └─ Guía completa de integración
+        Dónde, cuándo y cómo mostrar la ruta
+
+  📄 FRONTEND_RESUMEN_PARA_EQUIPO.md
+     └─ Este resumen ejecutivo
+        Para onboarding rápido
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 5. COLORES Y ESTILOS                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Marcadores en mapa:
+  ┌──────────────────────────────────────┐
+  │ 🏠 Origen (1)          Verde #00ff00 │
+  │ 🚶 Paradas (2, 3...)    Azul #0000ff │
+  │ 🎯 Destino             Rojo #ff0000  │
+  └──────────────────────────────────────┘
+
+  Línea de ruta:
+  ┌──────────────────────────────────────┐
+  │ Color:     Azul #0066cc              │
+  │ Grosor:    3 pixels                  │
+  │ Tipo:      Sólida                    │
+  └──────────────────────────────────────┘
+
+  Información:
+  ┌──────────────────────────────────────┐
+  │ Fondo card:    Gris claro #f0f0f0    │
+  │ Borde:         Azul #0066cc (left)   │
+  │ Texto grande:  Negrita, color azul   │
+  │ Texto pequeño: Gris #666             │
+  └──────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 6. LIBRERÍAS QUE NECESITAS                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  OPCIÓN 1: Google Maps (recomendado)
+  npm install @react-google-maps/api
+  npm install vue-3-google-map
+
+  OPCIÓN 2: Leaflet (más simple, gratis)
+  npm install leaflet react-leaflet
+  npm install leaflet vue-leaflet
+
+  OPCIÓN 3: Mapbox (muy bonito)
+  npm install mapbox-gl react-map-gl
+  npm install @mapbox/mapbox-gl-vue
+
+  (Elige solo UNA librería)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 7. FLUJO DE TRABAJO RECOMENDADO                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  1. PREPARAR ENTORNO
+     ✅ npm install @react-google-maps/api (o tu librería)
+     ✅ Obtener Google Maps API Key
+     ✅ Configurar .env
+
+  2. COPIAR CÓDIGO
+     ✅ Copiar archivo FRONTEND_INTEGRATION_REACT.js (o tu tech)
+     ✅ Adaptar para tu proyecto
+     ✅ Importar en tus páginas
+
+  3. INTEGRAR EN PÁGINAS
+     ✅ /driver/routes/{id} → Agregar componente RouteDisplay
+     ✅ /driver/dashboard → Agregar tarjetas con rutas
+     ✅ /passenger/reservation/{id} → Agregar mapa
+
+  4. PROBAR
+     ✅ Navegar a cada página
+     ✅ Verificar que se carguen datos
+     ✅ Probar iniciando ruta
+     ✅ Probar en mobile
+
+  5. REFINAR
+     ✅ Mejorar estilos
+     ✅ Agregar animaciones
+     ✅ Optimizar rendimiento
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 8. TROUBLESHOOTING                                                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  ❌ "Error: Unauthorized" en consola
+     ✅ Verificar que token está en localStorage
+     ✅ Verificar que no está expirado
+
+  ❌ Mapa no aparece
+     ✅ Verificar API Key en .env
+     ✅ Verificar que Google Maps esté habilitado en Google Cloud
+
+  ❌ Marcadores no se ven
+     ✅ Verificar que lat/lng sean números válidos
+     ✅ Verificar que el zoom sea correcto (12-15)
+
+  ❌ Datos tardan mucho
+     ✅ Verificar conexión a internet
+     ✅ Verificar que backend esté corriendo
+     ✅ Revisar console.log() para ver respuesta
+
+  ❌ Ruta no se ve en mapa
+     ✅ Verificar que optimizedRoute tiene datos
+     ✅ Verificar console.log(route)
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 9. PREGUNTAS RÁPIDAS                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  P: ¿Debo refrescar cada X segundos?
+  R: No. Los datos son estáticos. Solo actualiza si hay cambios.
+
+  P: ¿Puedo mostrar rastreo en vivo?
+  R: Sí, pero necesitas WebSocket (futuro, más adelante).
+
+  P: ¿Los datos se guardan en mi app?
+  R: Sí, guarda en Redux/Context para que persista entre páginas.
+
+  P: ¿Debo pedir confirmación antes de mostrar mapa?
+  R: No. Solo verifica que la ruta esté iniciada.
+
+  P: ¿Qué pasa si el usuario no tiene Google Maps API Key?
+  R: El mapa no aparecerá, pero la lista de paradas sí.
+
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 10. CHECKLIST DE DEPLOYMENT                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  Antes de subir a producción:
+  
+  ☐ Todos los componentes cargando datos correctamente
+  ☐ Mapa mostrando ruta (si usas Google Maps)
+  ☐ Lista de paradas visible y ordenada
+  ☐ Distancia total correcta
+  ☐ Responsive en todos los dispositivos
+  ☐ Error handling (mostrar mensaje si falla)
+  ☐ Loading state mientras carga
+  ☐ API Key oculta en .env
+  ☐ Tokens seguros en localStorage o sessionStorage
+  ☐ Probado en navegador real (no solo localhost)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                    ✅ ¡LISTO PARA EMPEZAR!
+
+Archivos disponibles:
+  • FRONTEND_INTEGRATION_REACT.js  → Componente React listo
+  • FRONTEND_INTEGRATION_VUE.vue   → Componente Vue listo
+  • FRONTEND_CODE_SNIPPETS.md      → 10+ snippets de código
+  • FRONTEND_INTEGRATION_GUIDE.md  → Guía completa
+
+¿Preguntas? → Revisar FRONTEND_RESUMEN_PARA_EQUIPO.md
+
+═══════════════════════════════════════════════════════════════════════════════
+```

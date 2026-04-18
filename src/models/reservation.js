@@ -9,6 +9,12 @@ const ReservationSchema = new mongoose.Schema({
 
   passengerId: String,
 
+  pickupLocation: {
+    name: String,
+    lat: Number,
+    lng: Number
+  },
+
   status: {
     type: String,
     enum: ["PENDING", "CONFIRMED", "REJECTED", "CANCELLED"],
