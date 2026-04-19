@@ -16,8 +16,28 @@ const RouteSchema = new mongoose.Schema(
       lng: Number
     },
 
-    /** Hora habitual de salida (referencia; el cupo real es por fecha en RouteDateSlot) */
-    departureTime: Date,
+  stops: [
+    {
+      passengerId: String,
+      name: String,
+      lat: Number,
+      lng: Number,
+      order: Number,
+      visitedAt: Date
+    }
+  ],
+
+  optimizedRoute: [
+    {
+      type: String, // 'origin', 'stop-{passengerId}', 'destination'
+      lat: Number,
+      lng: Number,
+      name: String,
+      order: Number
+    }
+  ],
+
+  departureTime: Date,
 
     /** Precio por cupo (pasajero) */
     pricePerSeat: {
@@ -26,13 +46,14 @@ const RouteSchema = new mongoose.Schema(
       min: 0
     },
 
-    status: {
-      type: String,
-      enum: ["ACTIVE", "INACTIVE"],
-      default: "ACTIVE"
-    }
+  status: {
+    type: String,
+    enum: ["ACTIVE", "IN_PROGRESS", "COMPLETED", "INACTIVE"],
+    default: "ACTIVE"
   },
   { timestamps: true }
-);
+  startedAt: Date,
+  completedAt: Date
+});
 
 module.exports = mongoose.model("Route", RouteSchema);

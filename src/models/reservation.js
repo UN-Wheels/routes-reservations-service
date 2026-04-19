@@ -22,16 +22,22 @@ const ReservationSchema = new mongoose.Schema(
       index: true
     },
 
-    /**
+  pickupLocation: {
+    name: String,
+    lat: Number,
+    lng: Number
+  },
+  
+  /**
      * Solicitud / reserva:
      * PENDING | REJECTED = solicitud
      * CONFIRMED | CANCELLED = reserva (confirmada o cancelada)
-     */
-    status: {
-      type: String,
-      enum: ["PENDING", "CONFIRMED", "REJECTED", "CANCELLED"],
-      default: "PENDING"
-    }
+     */  
+    
+  status: {
+    type: String,
+    enum: ["PENDING", "CONFIRMED", "REJECTED", "CANCELLED"],
+    default: "PENDING"
   },
   { timestamps: true }
 );

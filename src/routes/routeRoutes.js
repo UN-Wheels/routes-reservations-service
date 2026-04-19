@@ -16,4 +16,10 @@ router.patch("/:id", auth, controller.updateRoute);
 router.delete("/:id", auth, controller.deleteRoute);
 router.get("/:id", controller.getRouteById);
 
+// 🚀 Iniciar ruta y calcular mejor secuencia
+router.post("/:id/start", auth, controller.startRoute);
+
+// 📊 Obtener detalles de la ruta optimizada
+router.get("/:id/optimized", auth, controller.getOptimizedRouteDetails);
+
 module.exports = router;
