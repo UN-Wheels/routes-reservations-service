@@ -104,7 +104,7 @@ sequenceDiagram
   "destination": { "name": "string", "lat": "number", "lng": "number" },
   "departureTime": "date",
   "pricePerSeat": "number (>= 0)",
-  "status": "ACTIVE | INACTIVE"
+  "status": "ACTIVE | IN PROGRESS | COMPLETED | INACTIVE"
 }
 ```
 
