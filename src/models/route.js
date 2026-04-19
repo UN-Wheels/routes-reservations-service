@@ -46,14 +46,16 @@ const RouteSchema = new mongoose.Schema(
       min: 0
     },
 
-  status: {
-    type: String,
-    enum: ["ACTIVE", "IN_PROGRESS", "COMPLETED", "INACTIVE"],
-    default: "ACTIVE"
+    status: {
+      type: String,
+      enum: ["ACTIVE", "IN_PROGRESS", "COMPLETED", "INACTIVE"],
+      default: "ACTIVE"
+    },
+
+    startedAt: Date,
+    completedAt: Date
   },
   { timestamps: true }
-  startedAt: Date,
-  completedAt: Date
-});
+);
 
 module.exports = mongoose.model("Route", RouteSchema);
