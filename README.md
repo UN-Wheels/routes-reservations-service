@@ -105,6 +105,8 @@ sequenceDiagram
   "departureTime": "date",
   "pricePerSeat": "number (>= 0)",
   "status": "ACTIVE | IN PROGRESS | COMPLETED | INACTIVE"
+  "createdAt": date
+  "updatedAt": date
 }
 ```
 
@@ -117,7 +119,10 @@ Los cupos por día no van en el documento de la ruta: se generan a partir de **r
   "routeId": "ObjectId",
   "passengerId": "string",
   "travelDate": "date (inicio del día UTC)",
+  "pickupLocation": object
   "status": "PENDING | CONFIRMED | REJECTED | CANCELLED"
+  "createdAt": date
+  "updatedAt": date
 }
 ```
 
