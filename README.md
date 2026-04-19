@@ -112,6 +112,46 @@ sequenceDiagram
 
 Los cupos por día no van en el documento de la ruta: se generan a partir de **reglas de disponibilidad** (`RouteAvailabilityRule`) y se materializan en **slots** (`RouteDateSlot`).
 
+## RouteAvailabilityRule
+
+Define cómo se ofrecen cupos: fechas puntuales o recurrencia semanal en un rango. Al crear o eliminar reglas, el servicio **regenera** los documentos `RouteDateSlot` de esa ruta.
+
+``` json
+{
+  "routeId": "ObjectId",
+  "kind": "SPECIFIC_DATES | WEEKLY_RECURRENCE",
+  "specificEntries": [
+    { "date": "date", "seats": "number (>= 1)" }
+  ],
+  "weekdays": ["number (1=lunes … 7=domingo)"],
+  "rangeStart": "date",
+  "rangeEnd": "date",
+  "seatsPerOccurrence": "number (>= 1)",
+  "createdAt": "date",
+  "updatedAt": "date"
+}
+```
+
+- **`kind: "SPECIFIC_DATES"`**: usa **`specificEntries`** (cada ítem con `date` y `seats`). Los campos de recurrencia semanal no aplican.
+- **`kind: "WEEKLY_RECURRENCE"`**: usa **`weekdays`**, **`rangeStart`**, **`rangeEnd`** y **`seatsPerOccurrence`**. **`specificEntries`** suele ir vacío u omitirse.
+- En la API de creación (`POST .../availability/rules`), el body de fechas concretas envía **`entries`**; en base de datos el campo persistido es **`specificEntries`**.
+
+## RouteDateSlot
+
+Cupos agregados **por día** para una ruta (materializados a partir de todas las reglas activas). Índice único compuesto **`(routeId, date)`**: un solo documento por ruta y fecha.
+
+``` json
+{
+  "routeId": "ObjectId",
+  "date": "date (día concreto)",
+  "totalSeats": "number (>= 1)",
+  "createdAt": "date",
+  "updatedAt": "date"
+}
+```
+
+El cupo **disponible** para reservas se deriva comparando `totalSeats` con las reservas y solicitudes **`PENDING`** + **`CONFIRMED`** de ese `routeId` y `travelDate`.
+
 ## Reservation
 
 ``` json
