@@ -2,3 +2,5 @@
 node_modules/
 coverage/
 route-path-example.json
+generateToken.js
+simulateReservations.js

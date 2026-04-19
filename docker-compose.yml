@@ -10,14 +10,22 @@ services:
       - JWT_SECRET=supersecretkey
     depends_on:
       - mongo
+    networks:
+      - routes-net
 
   mongo:
     image: mongo
-    container_name: routes-mongo
     ports:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    networks:
+      routes-net:
+        aliases:
+          - mongo
 
 volumes:
   mongo-data:
+
+networks:
+  routes-net:

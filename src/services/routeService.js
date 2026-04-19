@@ -1,4 +1,9 @@
 const Route = require("../models/route");
+const RouteDateSlot = require("../models/routeDateSlot");
+const RouteAvailabilityRule = require("../models/routeAvailabilityRule");
+const Reservation = require("../models/reservation");
+const { listSlotsWithAvailability } = require("./availabilityService");
+const { startOfDayUtc } = require("../utils/dateUtils");
 const { getDistance } = require("geolib");
 
 // 📍 Calcular distancia entre dos puntos (en metros)
@@ -98,46 +103,109 @@ const enrichRouteWithMapData = (route) => {
   };
 };
 
-// 🟢 Publicar ruta (CONDUCTOR)
 exports.createRoute = async (data, driverId) => {
+  const pricePerSeat =
+    data.pricePerSeat !== undefined ? Number(data.pricePerSeat) : NaN;
+  if (!Number.isFinite(pricePerSeat) || pricePerSeat < 0) {
+    throw new Error("pricePerSeat is required and must be >= 0");
+  }
+
   const route = await Route.create({
-    ...data,
-    driverId,
-    availableSeats: data.totalSeats
+    origin: data.origin,
+    destination: data.destination,
+    departureTime: data.departureTime,
+    pricePerSeat,
+    status: data.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+    driverId
   });
 
   return enrichRouteWithMapData(route);
 };
 
-// ❌ Cancelar ruta (CONDUCTOR)
-exports.cancelRoute = async (routeId, driverId) => {
+exports.updateRoute = async (routeId, driverId, data) => {
   const route = await Route.findById(routeId);
-
   if (!route) {
     throw new Error("Route not found");
   }
-
   if (route.driverId !== driverId) {
     throw new Error("Unauthorized");
   }
 
-  route.status = "CANCELLED";
+  if (data.origin !== undefined) {
+    route.origin = data.origin;
+  }
+  if (data.destination !== undefined) {
+    route.destination = data.destination;
+  }
+  if (data.departureTime !== undefined) {
+    route.departureTime = data.departureTime;
+  }
+  if (data.pricePerSeat !== undefined) {
+    const p = Number(data.pricePerSeat);
+    if (!Number.isFinite(p) || p < 0) {
+      throw new Error("pricePerSeat must be >= 0");
+    }
+    route.pricePerSeat = p;
+  }
+  if (data.status !== undefined) {
+    if (!["ACTIVE", "INACTIVE"].includes(data.status)) {
+      throw new Error("status must be ACTIVE or INACTIVE");
+    }
+    route.status = data.status;
+  }
+
   await route.save();
-
-  return route;
+  return enrichRouteWithMapData(route);
 };
 
-// 🔎 Obtener rutas disponibles (SIN 0 CUPOS)
+/**
+ * Eliminación en cascada: disponibilidades (reglas + slots), solicitudes/reservas, ruta.
+ */
+exports.deleteRoute = async (routeId, driverId) => {
+  const route = await Route.findById(routeId);
+  if (!route) {
+    throw new Error("Route not found");
+  }
+  if (route.driverId !== driverId) {
+    throw new Error("Unauthorized");
+  }
+
+  await RouteAvailabilityRule.deleteMany({ routeId: route._id });
+  await RouteDateSlot.deleteMany({ routeId: route._id });
+  await Reservation.deleteMany({ routeId: route._id });
+  await route.deleteOne();
+
+  return { deleted: true, id: routeId };
+};
+
+/** Rutas públicas con al menos un día futuro con cupos libres */
 exports.getRoutes = async () => {
-  const routes = await Route.find({
-    status: "ACTIVE",
-    availableSeats: { $gt: 0 }
-  });
+  const today = startOfDayUtc(new Date());
+  const routes = await Route.find({ status: "ACTIVE" });
+  const usable = [];
 
-  return routes.map(enrichRouteWithMapData);
+  for (const route of routes) {
+    const slots = await RouteDateSlot.find({
+      routeId: route._id,
+      date: { $gte: today }
+    });
+    let hasAvailability = false;
+    for (const slot of slots) {
+      const list = await listSlotsWithAvailability(route._id, slot.date, slot.date);
+      const row = list[0];
+      if (row && row.availableSeats > 0) {
+        hasAvailability = true;
+        break;
+      }
+    }
+    if (hasAvailability) {
+      usable.push(route);
+    }
+  }
+
+  return usable.map(enrichRouteWithMapData);
 };
 
-// 🔎 Obtener una ruta por ID con datos para mapa
 exports.getRouteById = async (routeId) => {
   const route = await Route.findById(routeId);
 
@@ -148,6 +216,25 @@ exports.getRouteById = async (routeId) => {
   return enrichRouteWithMapData(route);
 };
 
+exports.getMyRoutes = async (driverId) => {
+  const routes = await Route.find({ driverId }).sort({ createdAt: -1 });
+  return routes.map(enrichRouteWithMapData);
+};
+
+exports.getPublicSlotsForRoute = async (routeId, fromDate, toDate) => {
+  const route = await Route.findById(routeId);
+  if (!route) {
+    throw new Error("Route not found");
+  }
+  if (route.status !== "ACTIVE") {
+    throw new Error("Route not available");
+  }
+  const from = fromDate ? startOfDayUtc(fromDate) : startOfDayUtc(new Date());
+  const to = toDate
+    ? startOfDayUtc(toDate)
+    : new Date(from.getTime() + 90 * 86400000);
+  return listSlotsWithAvailability(routeId, from, to);
+};
 // 🚀 INICIAR RUTA Y CALCULAR LA MEJOR SECUENCIA
 exports.startRoute = async (routeId, driverId) => {
   const route = await Route.findById(routeId);

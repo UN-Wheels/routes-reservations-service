@@ -1,19 +1,20 @@
 const mongoose = require("mongoose");
 
-const RouteSchema = new mongoose.Schema({
-  driverId: { type: String, required: true },
+const RouteSchema = new mongoose.Schema(
+  {
+    driverId: { type: String, required: true },
 
-  origin: {
-    name: String,
-    lat: Number,
-    lng: Number
-  },
+    origin: {
+      name: String,
+      lat: Number,
+      lng: Number
+    },
 
-  destination: {
-    name: String,
-    lat: Number,
-    lng: Number
-  },
+    destination: {
+      name: String,
+      lat: Number,
+      lng: Number
+    },
 
   stops: [
     {
@@ -38,15 +39,19 @@ const RouteSchema = new mongoose.Schema({
 
   departureTime: Date,
 
-  totalSeats: Number,
-  availableSeats: Number,
+    /** Precio por cupo (pasajero) */
+    pricePerSeat: {
+      type: Number,
+      required: true,
+      min: 0
+    },
 
   status: {
     type: String,
-    enum: ["ACTIVE", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+    enum: ["ACTIVE", "IN_PROGRESS", "COMPLETED", "INACTIVE"],
     default: "ACTIVE"
   },
-
+  { timestamps: true }
   startedAt: Date,
   completedAt: Date
 });
