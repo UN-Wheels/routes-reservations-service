@@ -19,11 +19,12 @@ escalabilidad, mantenibilidad y desacoplamiento entre componentes.
 
 ### Funcionalidades principales
 
--   Creación de rutas por parte de conductores
--   Consulta de rutas disponibles
--   Creación de reservas de asientos
--   Cancelación de reservas
--   Actualización automática de la disponibilidad de asientos
+-   Creación y edición de rutas por parte de conductores
+-   Reglas de disponibilidad por fecha (fechas concretas o recurrencia semanal) y cupos por día
+-   Consulta de rutas publicadas con cupos futuros y calendario de cupos por ruta
+-   Solicitudes y confirmación de reservas por fecha de viaje
+-   Listados para conductor y pasajero (pendientes, confirmadas, historial)
+-   Cancelación de reservas por el pasajero
 
 ------------------------------------------------------------------------
 
@@ -99,22 +100,15 @@ sequenceDiagram
 ``` json
 {
   "driverId": "string",
-  "origin": {
-    "name": "string",
-    "lat": "number",
-    "lng": "number"
-  },
-  "destination": {
-    "name": "string",
-    "lat": "number",
-    "lng": "number"
-  },
+  "origin": { "name": "string", "lat": "number", "lng": "number" },
+  "destination": { "name": "string", "lat": "number", "lng": "number" },
   "departureTime": "date",
-  "totalSeats": "number",
-  "availableSeats": "number",
-  "status": "ACTIVE | CANCELLED"
+  "pricePerSeat": "number (>= 0)",
+  "status": "ACTIVE | INACTIVE"
 }
 ```
+
+Los cupos por día no van en el documento de la ruta: se generan a partir de **reglas de disponibilidad** (`RouteAvailabilityRule`) y se materializan en **slots** (`RouteDateSlot`).
 
 ## Reservation
 
@@ -122,7 +116,8 @@ sequenceDiagram
 {
   "routeId": "ObjectId",
   "passengerId": "string",
-  "status": "PENDING | ACCEPTED | REJECTED | CANCELLED",
+  "travelDate": "date (inicio del día UTC)",
+  "status": "PENDING | CONFIRMED | REJECTED | CANCELLED"
 }
 ```
 
@@ -143,8 +138,10 @@ sequenceDiagram
     │   └── auth.js
     │
     ├── models/
-    │   ├── Route.js
-    │   └── Reservation.js
+    │   ├── route.js
+    │   ├── reservation.js
+    │   ├── routeAvailabilityRule.js
+    │   └── routeDateSlot.js
     │
     ├── routes/
     │   ├── routeRoutes.js
@@ -152,7 +149,11 @@ sequenceDiagram
     │
     ├── services/
     │   ├── routeService.js
-    │   └── reservationService.js
+    │   ├── reservationService.js
+    │   └── availabilityService.js
+    │
+    ├── utils/
+    │   └── dateUtils.js
     │
     └── server.js
     │
@@ -165,369 +166,444 @@ sequenceDiagram
 
 # Endpoints
 
-## 🚗 Rutas
+Prefijos montados en `server.js`:
 
-### Publicar ruta
+-   Rutas de transporte: **`/routes`**
+-   Reservas: **`/reservations`**
+-   Salud del servicio: **`/health`** (raíz de la app)
 
-POST /routes 
+En las rutas protegidas, el identificador del usuario sale del JWT (`req.user.id`), usado como `driverId` o `passengerId` según el caso.
 
-Permite a un conductor autenticado crear una nueva ruta de transporte.
+---
 
-🔐 Autenticación
+## Estado del servicio
 
-Requerida (JWT en header)
+### Comprobar salud
 
-Authorization: Bearer <TOKEN>
+`GET /health`
 
-📥 Body
+Comprueba que el proceso responde.
 
-``` json
+🔐 Autenticación: no requerida.
+
+📤 Respuesta `200`:
+
+```json
+{ "status": "OK" }
+```
+
+---
+
+## Rutas (`/routes`)
+
+### Crear ruta
+
+`POST /routes`
+
+Crea una ruta nueva. El `driverId` se toma del token.
+
+🔐 Autenticación: requerida (`Authorization: Bearer <TOKEN>`).
+
+📥 Body (ejemplo):
+
+```json
 {
-  "origin": {
-    "name": "Chapinero",
-    "lat": 4.6486,
-    "lng": -74.0651
-  },
-  "destination": {
-    "name": "Universidad Nacional",
-    "lat": 4.6351,
-    "lng": -74.0703
-  },
-  "departureTime": "2026-03-20T07:30:00",
-  "totalSeats": 4
+  "origin": { "name": "Chapinero", "lat": 4.6486, "lng": -74.0651 },
+  "destination": { "name": "Universidad Nacional", "lat": 4.6351, "lng": -74.0703 },
+  "departureTime": "2026-03-20T07:30:00.000Z",
+  "pricePerSeat": 5000,
+  "status": "ACTIVE"
 }
 ```
 
-⚙️ Lógica interna
+-   **`pricePerSeat`**: obligatorio, número ≥ 0.
+-   **`status`**: opcional; si envías `"INACTIVE"`, la ruta queda inactiva; en caso contrario queda **`ACTIVE`**.
 
-Extrae el driverId desde el token
+📤 Respuesta **`201`**: documento de ruta enriquecido con `mapLinks` (Google / Apple Maps) y `routePreview` (GeoJSON `LineString` entre origen y destino).
 
-Crea una nueva ruta con:
+Errores frecuentes: **`400`** si falta o es inválido `pricePerSeat`; **`500`** en fallo interno.
 
-availableSeats = totalSeats
+---
 
-status = ACTIVE
+### Mis rutas (conductor)
 
-Guarda en MongoDB
+`GET /routes/me`
 
-📤 Respuesta
-``` json
-{
-  "_id": "routeId",
-  "driverId": "driver123",
-  "origin": {...},
-  "destination": {...},
-  "departureTime": "2026-03-20T07:30:00",
-  "totalSeats": 4,
-  "availableSeats": 4,
-  "status": "ACTIVE",
-  "mapLinks": {
-    "googleMaps": "https://www.google.com/maps/dir/?api=1&origin=4.6486,-74.0651&destination=4.6351,-74.0703&travelmode=driving",
-    "appleMaps": "https://maps.apple.com/?saddr=4.6486,-74.0651&daddr=4.6351,-74.0703&dirflg=d"
-  },
-  "routePreview": {
-    "type": "LineString",
-    "coordinates": [
-      [-74.0651, 4.6486],
-      [-74.0703, 4.6351]
-    ]
-  }
-}
-```
+Lista todas las rutas del usuario autenticado (conductor), más recientes primero, con `mapLinks` y `routePreview`.
+
+🔐 Autenticación: requerida.
+
+📤 Respuesta **`200`**: array de rutas.
+
+---
+
+### Rutas publicadas con cupos futuros
+
+`GET /routes/available`
+
+Lista rutas en estado **`ACTIVE`** que tienen al menos un día futuro con cupos libres (según slots y reservas/solicitudes `PENDING` + `CONFIRMED`).
+
+🔐 Autenticación: no requerida.
+
+📤 Respuesta **`200`**: array de rutas enriquecidas.
+
+---
 
 ### Obtener ruta por ID
 
-GET /routes/:id
+`GET /routes/:id`
 
-Devuelve una ruta individual con los mismos campos anteriores, incluyendo `mapLinks` y `routePreview` para abrirla en Google Maps, Apple Maps, o dibujarla en un mapa del frontend.
+Devuelve una ruta por su `_id`, con `mapLinks` y `routePreview`.
 
-📤 Respuesta
+🔐 Autenticación: no requerida.
 
-``` json
-{
-  "_id": "routeId",
-  "origin": {...},
-  "destination": {...},
-  "mapLinks": {
-    "googleMaps": "https://www.google.com/maps/dir/?api=1&origin=4.6486,-74.0651&destination=4.6351,-74.0703&travelmode=driving",
-    "appleMaps": "https://maps.apple.com/?saddr=4.6486,-74.0651&daddr=4.6351,-74.0703&dirflg=d"
-  },
-  "routePreview": {
-    "type": "LineString",
-    "coordinates": [
-      [-74.0651, 4.6486],
-      [-74.0703, 4.6351]
-    ]
-  }
-}
-```
-### Cancelar rutas
+📌 Parámetro: **`id`**, ID de la ruta.
 
-DELETE /routes/:id 
+📤 Respuesta **`200`**: objeto ruta. **`404`** si no existe (`{ "error": "Route not found" }`).
 
-Permite a un conductor cancelar una ruta previamente creada.
+---
 
-🔐 Autenticación
+### Cupos por calendario (público)
 
-Requerida (JWT)
+`GET /routes/:id/slots`
 
-Authorization: Bearer <TOKEN>
+Devuelve, para una ruta **`ACTIVE`**, los días con cupo configurado y el uso aproximado: `totalSeats`, `usedSeats` (solicitudes y reservas `PENDING` + `CONFIRMED` ese día) y `availableSeats`.
 
-📌 Parámetro
+🔐 Autenticación: no requerida.
 
-id: ID de la ruta a cancelar
+📌 Parámetro de ruta: **`id`**.
 
-⚙️ Lógica interna
+📥 Query (opcional):
 
-Verifica que la ruta exista
+-   **`from`**: inicio del rango de fechas (si se omite, desde hoy en UTC).
+-   **`to`**: fin del rango (si se omite, hasta ~90 días desde `from`).
 
-Verifica que el usuario autenticado sea el conductor dueño de la ruta
+📤 Respuesta **`200`**: array de objetos `{ date, totalSeats, usedSeats, availableSeats }`.
 
-Cambia el estado de la ruta a CANCELLED
+**`404`**: ruta inexistente (`Route not found`) o no disponible (`Route not available` si no está `ACTIVE`).
 
-Opcionalmente:
+---
 
-Notifica a los pasajeros con reservas activas
+### Disponibilidad y reglas (solo conductor de la ruta)
 
-Cancela automáticamente las reservas asociadas
+`GET /routes/:id/availability`
 
-📤 Respuesta
+Devuelve las **reglas de disponibilidad** de la ruta y los **slots** calculados con ocupación en un rango de fechas.
 
-``` json
-{
-  "_id": "routeId",
-  "status": "CANCELLED"
-}
-```
+🔐 Autenticación: requerida (solo el dueño de la ruta).
 
-⚠️ Validaciones
+📥 Query (opcional): **`from`**, **`to`** (mismo criterio que slots; si `to` se omite, ~180 días desde `from`).
 
-Solo el conductor creador puede cancelar la ruta
-
-No se puede cancelar una ruta ya finalizada o cancelada
-
-### Obtener rutas disponibles
-
-GET /routes/available 
-
-Permite consultar todas las rutas activas disponibles en el sistema.
-
-🔐 Autenticación
-
-No requerida
-
-⚙️ Lógica interna
-
-Filtra rutas con status = ACTIVE
-
-Retorna lista completa
-
-📤 Respuesta
-
-``` json
-[
-  {
-    "_id": "routeId",
-    "origin": {...},
-    "destination": {...},
-    "availableSeats": 3
-  }
-]
-```
-
-## 🎫 Reservas
-
-### Solicitar reserva
-
-POST /reservations/request 
-
-Permite a un pasajero reservar un asiento en una ruta.
-
-🔐 Autenticación
-
-Requerida
-
-Authorization: Bearer <TOKEN>
-
-📥 Body
+📤 Respuesta **`200`**: objeto con `rules` (documentos tal como los persiste Mongoose) y `slots` (cupos agregados por día en el rango). Ejemplo con una regla de fechas concretas y otra semanal:
 
 ```json
 {
-  "routeId": "65f0c2bfa29a0b6c0d0a1234"
+  "rules": [
+    {
+      "_id": "680a1c2e4f2b1a001234abcd",
+      "routeId": "680a1b004f2b1a0012345678",
+      "kind": "SPECIFIC_DATES",
+      "specificEntries": [
+        { "date": "2026-04-20T00:00:00.000Z", "seats": 4 },
+        { "date": "2026-04-21T00:00:00.000Z", "seats": 4 }
+      ],
+      "createdAt": "2026-04-18T10:00:00.000Z",
+      "updatedAt": "2026-04-18T10:00:00.000Z",
+      "__v": 0
+    },
+    {
+      "_id": "680a1c404f2b1a001234abce",
+      "routeId": "680a1b004f2b1a0012345678",
+      "kind": "WEEKLY_RECURRENCE",
+      "weekdays": [1, 3, 5],
+      "rangeStart": "2026-04-01T00:00:00.000Z",
+      "rangeEnd": "2026-06-30T00:00:00.000Z",
+      "seatsPerOccurrence": 3,
+      "createdAt": "2026-04-18T10:05:00.000Z",
+      "updatedAt": "2026-04-18T10:05:00.000Z",
+      "__v": 0
+    }
+  ],
+  "slots": [
+    {
+      "date": "2026-04-20T00:00:00.000Z",
+      "totalSeats": 7,
+      "usedSeats": 1,
+      "availableSeats": 6
+    },
+    {
+      "date": "2026-04-22T00:00:00.000Z",
+      "totalSeats": 3,
+      "usedSeats": 0,
+      "availableSeats": 3
+    }
+  ]
 }
 ```
 
-⚙️ Lógica interna
+Notas:
 
-Verifica que la ruta exista
+-   En **`SPECIFIC_DATES`**, la API recibe `entries` en el body, pero en base de datos y en esta respuesta el campo es **`specificEntries`**.
+-   En **`WEEKLY_RECURRENCE`**, los campos **`weekdays`**, **`rangeStart`**, **`rangeEnd`** y **`seatsPerOccurrence`** solo aplican a ese `kind`; `specificEntries` suele omitirse o ir vacío en JSON.
+-   **`totalSeats`** en cada fila de `slots` es la suma de cupos de todas las reglas que cubren ese día; **`usedSeats`** cuenta reservas y solicitudes **`PENDING`** + **`CONFIRMED`** ese día.
 
-Verifica disponibilidad de asientos
+**`403`**: no eres el conductor (`Unauthorized`). **`404`**: ruta no encontrada.
 
-Crea la reserva
+---
 
-Reduce availableSeats en la ruta
+### Añadir regla de disponibilidad
 
-⚠️ Validaciones
+`POST /routes/:id/availability/rules`
 
-Si no existe la ruta → error
+Crea una regla y **recalcula** todos los `RouteDateSlot` de esa ruta.
 
-Si no hay cupos → error
+🔐 Autenticación: requerida (solo el dueño).
 
-📤 Respuesta
+📥 Body — **`kind: "SPECIFIC_DATES"`**:
 
 ```json
 {
-  "_id": "reservationId",
+  "kind": "SPECIFIC_DATES",
+  "entries": [
+    { "date": "2026-04-20T00:00:00.000Z", "seats": 4 },
+    { "date": "2026-04-21T00:00:00.000Z", "seats": 4 }
+  ]
+}
+```
+
+📥 Body — **`kind: "WEEKLY_RECURRENCE"`**:
+
+-   **`weekdays`**: array de enteros **1 = lunes … 7 = domingo** (obligatorio, no vacío).
+-   **`rangeStart`**, **`rangeEnd`**: límites del rango (obligatorios).
+-   **`seatsPerOccurrence`**: cupos por cada día que coincida (≥ 1).
+
+```json
+{
+  "kind": "WEEKLY_RECURRENCE",
+  "weekdays": [1, 3, 5],
+  "rangeStart": "2026-04-01T00:00:00.000Z",
+  "rangeEnd": "2026-06-30T00:00:00.000Z",
+  "seatsPerOccurrence": 3
+}
+```
+
+📤 Respuesta **`201`**: documento de la regla recién creada (Mongoose serializa fechas y ObjectId en ISO string / hex).
+
+**Tras crear `SPECIFIC_DATES`:**
+
+```json
+{
+  "_id": "680a1c2e4f2b1a001234abcd",
+  "routeId": "680a1b004f2b1a0012345678",
+  "kind": "SPECIFIC_DATES",
+  "specificEntries": [
+    { "date": "2026-04-20T00:00:00.000Z", "seats": 4 },
+    { "date": "2026-04-21T00:00:00.000Z", "seats": 4 }
+  ],
+  "createdAt": "2026-04-18T12:00:00.000Z",
+  "updatedAt": "2026-04-18T12:00:00.000Z",
+  "__v": 0
+}
+```
+
+**Tras crear `WEEKLY_RECURRENCE`:**
+
+```json
+{
+  "_id": "680a1d104f2b1a001234abff",
+  "routeId": "680a1b004f2b1a0012345678",
+  "kind": "WEEKLY_RECURRENCE",
+  "weekdays": [1, 3, 5],
+  "rangeStart": "2026-04-01T00:00:00.000Z",
+  "rangeEnd": "2026-06-30T00:00:00.000Z",
+  "seatsPerOccurrence": 3,
+  "createdAt": "2026-04-18T12:10:00.000Z",
+  "updatedAt": "2026-04-18T12:10:00.000Z",
+  "__v": 0
+}
+```
+
+Errores **`400`** por validación; **`403`** / **`404`** como en otros endpoints del conductor.
+
+---
+
+### Eliminar regla de disponibilidad
+
+`DELETE /routes/:id/availability/rules/:ruleId`
+
+Elimina la regla indicada y **vuelve a generar** los slots de la ruta.
+
+🔐 Autenticación: requerida (solo el dueño).
+
+📌 Parámetros: **`id`** (ruta), **`ruleId`** (regla).
+
+📤 Respuesta **`200`**: `{ "deleted": true }`. **`404`**: ruta o regla no encontrada; **`403`** si no eres el dueño.
+
+---
+
+### Actualizar ruta
+
+`PATCH /routes/:id`
+
+Actualiza campos opcionales: `origin`, `destination`, `departureTime`, `pricePerSeat` (≥ 0), `status` (**`ACTIVE`** o **`INACTIVE`** solamente).
+
+🔐 Autenticación: requerida (solo el dueño).
+
+📤 Respuesta **`200`**: ruta actualizada enriquecida. **`403`** / **`404`** según corresponda; **`400`** si `pricePerSeat` o `status` son inválidos.
+
+---
+
+### Eliminar ruta
+
+`DELETE /routes/:id`
+
+Elimina la ruta y en **cascada** reglas de disponibilidad, slots y todas las reservas asociadas a esa ruta.
+
+🔐 Autenticación: requerida (solo el dueño).
+
+📤 Respuesta **`200`**: `{ "deleted": true, "id": "<routeId>" }`.
+
+---
+
+## Reservas (`/reservations`)
+
+### Solicitudes pendientes (conductor)
+
+`GET /reservations/me/driver/requests`
+
+Reservas en estado **`PENDING`** cuya ruta pertenece al conductor autenticado. Cada ítem incluye `routeId` poblado.
+
+🔐 Autenticación: requerida.
+
+---
+
+### Reservas confirmadas (conductor)
+
+`GET /reservations/me/driver/confirmed`
+
+Misma idea que la anterior, filtrando estado **`CONFIRMED`**.
+
+🔐 Autenticación: requerida.
+
+---
+
+### Mis solicitudes como pasajero
+
+`GET /reservations/me/passenger/requests`
+
+Listado de reservas del pasajero con estado **`PENDING`** o **`REJECTED`**, con `routeId` poblado.
+
+🔐 Autenticación: requerida.
+
+---
+
+### Mis viajes confirmados (próximos)
+
+`GET /reservations/me/passenger/confirmed`
+
+Reservas **`CONFIRMED`** del pasajero con **`travelDate`** ≥ hoy (inicio del día UTC), ordenadas por fecha ascendente.
+
+🔐 Autenticación: requerida.
+
+---
+
+### Historial de viajes (pasajero)
+
+`GET /reservations/me/passenger/history`
+
+Reservas **`CONFIRMED`** con **`travelDate`** anterior a hoy (UTC), orden descendente por fecha.
+
+🔐 Autenticación: requerida.
+
+---
+
+### Solicitar reserva (fecha concreta)
+
+`POST /reservations/request`
+
+Crea una solicitud **`PENDING`** para un día en el que la ruta tenga slot y cupo libre. No puede haber ya otra solicitud o reserva **`PENDING`** / **`CONFIRMED`** del mismo pasajero para la misma ruta y fecha.
+
+🔐 Autenticación: requerida.
+
+📥 Body:
+
+```json
+{
   "routeId": "65f0c2bfa29a0b6c0d0a1234",
-  "passengerId": "passenger123",
-  "status": "PENDING",
-  "createdAt": "2026-03-20T07:00:00"
+  "travelDate": "2026-04-22T00:00:00.000Z"
 }
 ```
+
+-   **`travelDate`**: obligatorio (se normaliza al inicio del día en UTC).
+
+📤 Respuesta **`201`**: documento de reserva (incluye `travelDate`, `status: "PENDING"`, timestamps).
+
+**`400`** ejemplos: ruta no disponible, fecha sin slot, sin cupos, fecha omitida, o mensaje tipo *"You already have a pending or confirmed request for this date"*.
+
+---
 
 ### Aceptar solicitud
 
-PATCH /reservations/:id/accept 
+`PATCH /reservations/:id/accept`
 
-Permite al conductor aceptar una solicitud de reserva realizada por un pasajero.
+El conductor de la ruta pasa la reserva de **`PENDING`** a **`CONFIRMED`** si la ruta sigue activa y sigue habiendo cupo lógico para esa fecha.
 
-🔐 Autenticación
+🔐 Autenticación: requerida.
 
-Requerida
+📌 Parámetro: **`id`**, ID de la reserva.
 
-Authorization: Bearer <TOKEN>
+📤 Respuesta **`200`**: reserva actualizada. **`403`** / **`404`**; **`400`** si no está pendiente, la ruta no está activa, o no hay cupo disponible para la fecha.
 
-📌 Parámetro
-
-id: ID de la reserva
-
-⚙️ Lógica interna
-
-Verifica que la reserva exista
-
-Verifica que el usuario autenticado sea el conductor de la ruta asociada
-
-Cambia el estado de la reserva a CONFIRMED
-
-📤 Respuesta
-
-```json
-{
-  "_id": "reservationId",
-  "status": "CONFIRMED"
-}
-```
-
-⚠️ Validaciones
-
-Solo el conductor puede aceptar solicitudes
-
-No se puede aceptar una reserva ya procesada
+---
 
 ### Rechazar solicitud
 
-PATCH /reservations/:id/reject 
+`PATCH /reservations/:id/reject`
 
-Permite al conductor rechazar una solicitud de reserva.
+El conductor marca la solicitud como **`REJECTED`** (solo si estaba **`PENDING`**). El cupo del día queda libre para otros pasajeros.
 
-🔐 Autenticación
+🔐 Autenticación: requerida.
 
-Requerida
+📤 Respuesta **`200`**: reserva con `status: "REJECTED"`. Errores **`403`**, **`404`**, **`400`** (p. ej. solo se rechazan pendientes).
 
-Authorization: Bearer <TOKEN>
+---
 
-📌 Parámetro
+### Cancelar reserva (pasajero)
 
-id: ID de la reserva
+`DELETE /reservations/:id`
 
-⚙️ Lógica interna
+Solo el **pasajero** dueño de la reserva puede cancelar. Estado pasa a **`CANCELLED`** (si ya estaba cancelada o rechazada, se devuelve sin cambio efectivo).
 
-Verifica que la reserva exista
+🔐 Autenticación: requerida.
 
-Verifica que el usuario autenticado sea el conductor de la ruta
+📤 Respuesta **`200`**: reserva. **`403`** si no eres el pasajero; **`404`** si no existe la reserva.
 
-Cambia el estado de la reserva a REJECTED
+---
 
-Libera el cupo (incrementa availableSeats si ya se había reservado)
+## Manejo de errores (referencia)
 
-📤 Respuesta
-
-```json
-{
-  "_id": "reservationId",
-  "status": "REJECTED"
-}
-```
-
-⚠️ Validaciones
-
-Solo el conductor puede rechazar solicitudes
-
-No se puede rechazar una reserva ya confirmada o cancelada
-
-### Cancelar reserva
-
-DELETE /reservations/:id  
-
-Permite cancelar una reserva existente.
-
-🔐 Autenticación
-
-Requerida
-
-📌 Parámetro
-
-id: ID de la reserva
-
-⚙️ Lógica interna
-
-Busca la reserva
-
-Cambia estado a CANCELLED
-
-Incrementa availableSeats en la ruta
-
-📤 Respuesta
+Respuestas típicas en JSON:
 
 ```json
-{
-  "_id": "reservationId",
-  "status": "CANCELLED"
-}
+{ "error": "Route not found" }
 ```
-⚠️ Manejo de Errores
-
-Ejemplos comunes
-
-Ruta no encontrada
 
 ```json
-{
-  "error": "Route not found"
-}
+{ "error": "Unauthorized" }
 ```
-
-Sin cupos disponibles
 
 ```json
-{
-  "error": "No seats available"
-}
+{ "error": "No seats available for this date" }
 ```
 
-Token inválido
+En `middleware/auth.js`, sin cabecera de autorización: **`401`** `{ "message": "No token provided" }`. Token inválido o expirado: **`401`** `{ "message": "Invalid token" }`.
 
-```json
-{
-  "message": "Invalid token"
-}
-```
+---
 
-🔐 Notas de Seguridad
+## Notas de seguridad
 
-Todos los endpoints protegidos usan JWT
-
-El user.id se obtiene del token
+-   Los endpoints marcados como protegidos esperan **`Authorization: Bearer <JWT>`**.
+-   El **`user.id`** del token identifica al conductor o al pasajero según el endpoint.
 
 ------------------------------------------------------------------------
 
