@@ -29,7 +29,7 @@ const RouteSchema = new mongoose.Schema(
 
   optimizedRoute: [
     {
-      type: String, // 'origin', 'stop-{passengerId}', 'destination'
+      type: {type: String}, // 'origin', 'stop-{passengerId}', 'destination'
       lat: Number,
       lng: Number,
       name: String,
