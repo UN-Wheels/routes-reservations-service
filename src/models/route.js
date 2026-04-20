@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const RouteSchema = new mongoose.Schema(
   {
     driverId: { type: String, required: true },
+    vehicleId: { type: String },
 
     origin: {
       name: String,

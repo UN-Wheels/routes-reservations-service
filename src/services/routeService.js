@@ -116,7 +116,8 @@ exports.createRoute = async (data, driverId) => {
     departureTime: data.departureTime,
     pricePerSeat,
     status: data.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
-    driverId
+    driverId,
+    vehicleId: data.vehicleId
   });
 
   return enrichRouteWithMapData(route);
@@ -131,6 +132,9 @@ exports.updateRoute = async (routeId, driverId, data) => {
     throw new Error("Unauthorized");
   }
 
+  if (data.vehicleId !== undefined) {
+    route.vehicleId = data.vehicleId;
+  }
   if (data.origin !== undefined) {
     route.origin = data.origin;
   }
