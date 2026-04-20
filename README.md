@@ -100,13 +100,14 @@ sequenceDiagram
 ``` json
 {
   "driverId": "string",
+  "vehicleId": "string",
   "origin": { "name": "string", "lat": "number", "lng": "number" },
   "destination": { "name": "string", "lat": "number", "lng": "number" },
   "departureTime": "date",
   "pricePerSeat": "number (>= 0)",
   "status": "ACTIVE | IN PROGRESS | COMPLETED | INACTIVE"
-  "createdAt": date
-  "updatedAt": date
+  "createdAt": "date"
+  "updatedAt": "date"
 }
 ```
 
