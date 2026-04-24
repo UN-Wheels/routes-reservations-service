@@ -5,6 +5,7 @@ const Reservation = require("../models/reservation");
 const { listSlotsWithAvailability } = require("./availabilityService");
 const { startOfDayUtc } = require("../utils/dateUtils");
 const { getDistance } = require("geolib");
+const rabbit = require("../config/rabbitmq");
 
 // 📍 Calcular distancia entre dos puntos (en metros)
 const calculateDistance = (point1, point2) => {
@@ -174,10 +175,26 @@ exports.deleteRoute = async (routeId, driverId) => {
     throw new Error("Unauthorized");
   }
 
+  const affectedReservations = await Reservation.find({
+    routeId: route._id,
+    status: { $in: ["PENDING", "CONFIRMED"] }
+  }).select("passengerId");
+  const affectedPassengers = [...new Set(affectedReservations.map((r) => r.passengerId))];
+
   await RouteAvailabilityRule.deleteMany({ routeId: route._id });
   await RouteDateSlot.deleteMany({ routeId: route._id });
   await Reservation.deleteMany({ routeId: route._id });
   await route.deleteOne();
+
+  if (affectedPassengers.length > 0) {
+    rabbit.publish('route.deleted', {
+      routeId:            routeId.toString(),
+      driverEmail:        driverId,
+      origin:             route.origin?.name ?? '',
+      destination:        route.destination?.name ?? '',
+      affectedPassengers,
+    }).catch(() => {});
+  }
 
   return { deleted: true, id: routeId };
 };
