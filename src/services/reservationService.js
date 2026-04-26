@@ -5,6 +5,7 @@ const {
   canAcceptReservation
 } = require("./availabilityService");
 const { startOfDayUtc } = require("../utils/dateUtils");
+const rabbit = require("../config/rabbitmq");
 
 exports.requestReservation = async (routeId, passengerId, travelDateInput) => {
   if (!travelDateInput) {
@@ -29,12 +30,25 @@ exports.requestReservation = async (routeId, passengerId, travelDateInput) => {
     throw new Error("You already have a pending or confirmed request for this date");
   }
 
-  return Reservation.create({
+  const reservation = await Reservation.create({
     routeId,
     passengerId,
     travelDate,
     status: "PENDING"
   });
+
+  // Publicar evento asíncrono — no bloquea la respuesta HTTP
+  rabbit.publish('reservation.requested', {
+    reservationId:  reservation._id.toString(),
+    routeId:        routeId.toString(),
+    passengerEmail: passengerId,
+    driverEmail:    route.driverId,
+    origin:         route.origin?.name ?? '',
+    destination:    route.destination?.name ?? '',
+    travelDate:     travelDate.toISOString(),
+  }).catch(() => {});
+
+  return reservation;
 };
 
 exports.acceptReservation = async (reservationId, driverId) => {
@@ -69,6 +83,17 @@ exports.acceptReservation = async (reservationId, driverId) => {
 
   reservation.status = "CONFIRMED";
   await reservation.save();
+
+  rabbit.publish('reservation.accepted', {
+    reservationId:  reservation._id.toString(),
+    routeId:        reservation.routeId.toString(),
+    passengerEmail: reservation.passengerId,
+    driverEmail:    route.driverId,
+    origin:         route.origin?.name ?? '',
+    destination:    route.destination?.name ?? '',
+    travelDate:     reservation.travelDate.toISOString(),
+  }).catch(() => {});
+
   return reservation;
 };
 
@@ -89,6 +114,17 @@ exports.rejectReservation = async (reservationId, driverId) => {
 
   reservation.status = "REJECTED";
   await reservation.save();
+
+  rabbit.publish('reservation.rejected', {
+    reservationId:  reservation._id.toString(),
+    routeId:        reservation.routeId.toString(),
+    passengerEmail: reservation.passengerId,
+    driverEmail:    route.driverId,
+    origin:         route.origin?.name ?? '',
+    destination:    route.destination?.name ?? '',
+    travelDate:     reservation.travelDate.toISOString(),
+  }).catch(() => {});
+
   return reservation;
 };
 
