@@ -33,7 +33,10 @@ class RabbitMQPublisher {
     }
 
     try {
-      const buffer = Buffer.from(JSON.stringify(payload));
+      // NestJS RMQ consumer (@EventPattern) requiere el envelope { pattern, data }
+      // para despachar al handler correcto. Sin él el mensaje es ignorado.
+      const message = { pattern: routingKey, data: payload };
+      const buffer = Buffer.from(JSON.stringify(message));
       this.channel.publish(EXCHANGE, routingKey, buffer, { persistent: true });
       console.log(`[RabbitMQ] Publicado: ${routingKey}`);
     } catch (err) {
