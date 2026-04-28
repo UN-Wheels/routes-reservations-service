@@ -7,6 +7,10 @@ router.post("/", auth, controller.createRoute);
 router.get("/me", auth, controller.getMyRoutes);
 router.get("/available", controller.getRoutes);
 
+// 🗺️ Endpoints de información geográfica
+router.get("/geo/university-entrances", controller.getUniversityEntrances);
+router.get("/geo/cundinamarca-bounds", controller.getCundinamarcaBounds);
+
 router.get("/:id/slots", controller.getRouteSlotsPublic);
 router.get("/:id/availability", auth, controller.getRouteAvailability);
 router.post("/:id/availability/rules", auth, controller.addAvailabilityRule);

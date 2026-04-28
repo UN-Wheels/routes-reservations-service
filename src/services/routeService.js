@@ -6,6 +6,10 @@ const { listSlotsWithAvailability } = require("./availabilityService");
 const { startOfDayUtc } = require("../utils/dateUtils");
 const { getDistance } = require("geolib");
 const rabbit = require("../config/rabbitmq");
+const {
+  validateRouteWithUniversityRules,
+  validatePickupLocation
+} = require("../utils/geographicUtils");
 
 // 📍 Calcular distancia entre dos puntos (en metros)
 const calculateDistance = (point1, point2) => {
@@ -111,6 +115,15 @@ exports.createRoute = async (data, driverId) => {
     throw new Error("pricePerSeat is required and must be >= 0");
   }
 
+  // 🗺️ Validar ubicaciones con reglas de Cundinamarca y Universidad
+  const validation = validateRouteWithUniversityRules(
+    data.origin,
+    data.destination
+  );
+  if (!validation.valid) {
+    throw new Error(validation.errors.join(" | "));
+  }
+
   const route = await Route.create({
     origin: data.origin,
     destination: data.destination,
@@ -157,6 +170,15 @@ exports.updateRoute = async (routeId, driverId, data) => {
       throw new Error("status must be ACTIVE or INACTIVE");
     }
     route.status = data.status;
+  }
+
+  // 🗺️ Validar ubicaciones actualizadas con reglas de Cundinamarca y Universidad
+  const validation = validateRouteWithUniversityRules(
+    route.origin,
+    route.destination
+  );
+  if (!validation.valid) {
+    throw new Error(validation.errors.join(" | "));
   }
 
   await route.save();

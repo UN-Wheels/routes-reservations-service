@@ -6,8 +6,9 @@ const {
 } = require("./availabilityService");
 const { startOfDayUtc } = require("../utils/dateUtils");
 const rabbit = require("../config/rabbitmq");
+const { validatePickupLocation } = require("../utils/geographicUtils");
 
-exports.requestReservation = async (routeId, passengerId, travelDateInput) => {
+exports.requestReservation = async (routeId, passengerId, travelDateInput, pickupLocation) => {
   if (!travelDateInput) {
     throw new Error("travelDate is required");
   }
@@ -15,6 +16,18 @@ exports.requestReservation = async (routeId, passengerId, travelDateInput) => {
   const route = await Route.findById(routeId);
   if (!route || route.status !== "ACTIVE") {
     throw new Error("Route not available");
+  }
+
+  // 🗺️ Validar ubicación de recogida
+  if (pickupLocation) {
+    const pickupValidation = validatePickupLocation(
+      pickupLocation,
+      route.origin,
+      route.destination
+    );
+    if (!pickupValidation.valid) {
+      throw new Error(pickupValidation.message);
+    }
   }
 
   const travelDate = startOfDayUtc(travelDateInput);
@@ -34,6 +47,7 @@ exports.requestReservation = async (routeId, passengerId, travelDateInput) => {
     routeId,
     passengerId,
     travelDate,
+    pickupLocation,
     status: "PENDING"
   });
 
