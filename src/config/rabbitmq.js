@@ -2,34 +2,53 @@ const amqp = require('amqplib');
 
 const EXCHANGE = 'uniwheels.events';
 
+const RECONNECT_DELAY_MS = 5000;
+
 class RabbitMQPublisher {
   constructor() {
-    this.connection = null;
-    this.channel    = null;
+    this.connection  = null;
+    this.channel     = null;
+    this.reconnecting = false;
+  }
+
+  scheduleConnect(delayMs) {
+    if (this.reconnecting) return;
+    this.reconnecting = true;
+    setTimeout(() => {
+      this.connect()
+        .then(() => { this.reconnecting = false; })
+        .catch((err) => {
+          this.reconnecting = false;
+          console.error('[RabbitMQ] Reintento fallo:', err.message);
+          this.scheduleConnect(RECONNECT_DELAY_MS);
+        });
+    }, delayMs);
   }
 
   async connect() {
     const url = process.env.RABBITMQ_URL || 'amqp://admin:admin@localhost:5672';
-    this.connection = await amqp.connect(url);
+    // heartbeat=30 evita que la conexion TCP quede idle y se corte tras unos minutos.
+    this.connection = await amqp.connect(url, { heartbeat: 30 });
     this.channel    = await this.connection.createConfirmChannel();
 
     await this.channel.assertExchange(EXCHANGE, 'topic', { durable: true });
     console.log('[RabbitMQ] Conexión establecida');
 
-    this.connection.on('error', (err) => {
-      console.error('[RabbitMQ] Error de conexión:', err.message);
+    const onLost = (reason) => (err) => {
+      console.error(`[RabbitMQ] Conexion ${reason}:`, err?.message ?? 'sin detalle');
       this.connection = null;
       this.channel    = null;
-    });
+      this.scheduleConnect(RECONNECT_DELAY_MS);
+    };
+    this.connection.on('error', onLost('error'));
+    this.connection.on('close', onLost('close'));
   }
 
   async publish(routingKey, payload) {
-    // Reconectar si la conexión se perdió
     if (!this.channel) {
-      try { await this.connect(); } catch (err) {
-        console.error('[RabbitMQ] No se pudo reconectar:', err.message);
-        return; // Fallo silencioso — no bloquea la respuesta HTTP
-      }
+      console.warn(`[RabbitMQ] Canal no disponible al publicar ${routingKey}; reintentando conexion`);
+      this.scheduleConnect(0);
+      return;
     }
 
     try {
@@ -41,6 +60,7 @@ class RabbitMQPublisher {
       console.log(`[RabbitMQ] Publicado: ${routingKey}`);
     } catch (err) {
       console.error('[RabbitMQ] Error publicando:', err.message);
+      this.scheduleConnect(RECONNECT_DELAY_MS);
     }
   }
 }

@@ -10,7 +10,11 @@ const routeRoutes = require("./routes/routeRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
 
 connectDB();
-rabbit.connect().catch((err) => console.error("[RabbitMQ] Error inicial:", err.message));
+// Si la conexion inicial falla, scheduleConnect se encarga del reintento exponencial.
+rabbit.connect().catch((err) => {
+  console.error("[RabbitMQ] Error inicial:", err.message);
+  rabbit.scheduleConnect(5000);
+});
 
 const app = express();
 
