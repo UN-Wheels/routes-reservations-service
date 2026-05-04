@@ -6,6 +6,10 @@ const { listSlotsWithAvailability } = require("./availabilityService");
 const { startOfDayUtc } = require("../utils/dateUtils");
 const { getDistance } = require("geolib");
 const rabbit = require("../config/rabbitmq");
+const {
+  validateRouteWithUniversityRules,
+  validatePickupLocation
+} = require("../utils/geographicUtils");
 
 // 📍 Calcular distancia entre dos puntos (en metros)
 const calculateDistance = (point1, point2) => {
@@ -111,6 +115,15 @@ exports.createRoute = async (data, driverId) => {
     throw new Error("pricePerSeat is required and must be >= 0");
   }
 
+  // 🗺️ Validar ubicaciones con reglas de Cundinamarca y Universidad
+  const validation = validateRouteWithUniversityRules(
+    data.origin,
+    data.destination
+  );
+  if (!validation.valid) {
+    throw new Error(validation.errors.join(" | "));
+  }
+
   const route = await Route.create({
     origin: data.origin,
     destination: data.destination,
@@ -159,6 +172,15 @@ exports.updateRoute = async (routeId, driverId, data) => {
     route.status = data.status;
   }
 
+  // 🗺️ Validar ubicaciones actualizadas con reglas de Cundinamarca y Universidad
+  const validation = validateRouteWithUniversityRules(
+    route.origin,
+    route.destination
+  );
+  if (!validation.valid) {
+    throw new Error(validation.errors.join(" | "));
+  }
+
   await route.save();
   return enrichRouteWithMapData(route);
 };
@@ -199,7 +221,7 @@ exports.deleteRoute = async (routeId, driverId) => {
   return { deleted: true, id: routeId };
 };
 
-/** Rutas públicas con al menos un día futuro con cupos libres */
+/** Rutas públicas: activas sin fechas asignadas O con al menos un día futuro con cupos libres */
 exports.getRoutes = async () => {
   const today = startOfDayUtc(new Date());
   const routes = await Route.find({ status: "ACTIVE" });
@@ -210,6 +232,14 @@ exports.getRoutes = async () => {
       routeId: route._id,
       date: { $gte: today }
     });
+    
+    // Si no hay slots asignados, la ruta es válida (disponibilidad opcional)
+    if (slots.length === 0) {
+      usable.push(route);
+      continue;
+    }
+
+    // Si tiene slots, verificar si al menos uno tiene disponibilidad
     let hasAvailability = false;
     for (const slot of slots) {
       const list = await listSlotsWithAvailability(route._id, slot.date, slot.date);

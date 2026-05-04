@@ -4,8 +4,8 @@ const clientError = (res, status, message) => res.status(status).json({ error: m
 
 exports.requestReservation = async (req, res) => {
   try {
-    const { routeId, travelDate } = req.body;
-    const result = await service.requestReservation(routeId, req.user.id, travelDate);
+    const { routeId, travelDate, pickupLocation } = req.body;
+    const result = await service.requestReservation(routeId, req.user.id, travelDate, pickupLocation);
     res.status(201).json(result);
   } catch (e) {
     if (
@@ -16,6 +16,15 @@ exports.requestReservation = async (req, res) => {
         "travelDate is required"
       ].includes(e.message) ||
       e.message.includes("already have")
+    ) {
+      return clientError(res, 400, e.message);
+    }
+    // 🗺️ Errores de validación geográfica
+    if (
+      e.message.includes("Cundinamarca") ||
+      e.message.includes("Universidad") ||
+      e.message.includes("entrada") ||
+      e.message.includes("pickupLocation")
     ) {
       return clientError(res, 400, e.message);
     }

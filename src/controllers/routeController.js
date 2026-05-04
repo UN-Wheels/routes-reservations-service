@@ -1,5 +1,6 @@
 const routeService = require("../services/routeService");
 const availabilityService = require("../services/availabilityService");
+const { getUniversityEntrances, getCundinamarcaBounds } = require("../utils/geographicUtils");
 
 const clientError = (res, status, message) => res.status(status).json({ error: message });
 
@@ -10,6 +11,14 @@ exports.createRoute = async (req, res) => {
     res.status(201).json(route);
   } catch (err) {
     if (err.message === "pricePerSeat is required and must be >= 0") {
+      return clientError(res, 400, err.message);
+    }
+    // 🗺️ Errores de validación geográfica
+    if (
+      err.message.includes("Cundinamarca") ||
+      err.message.includes("Universidad") ||
+      err.message.includes("entrada")
+    ) {
       return clientError(res, 400, err.message);
     }
     res.status(500).json({ error: err.message });
@@ -24,6 +33,14 @@ exports.updateRoute = async (req, res) => {
   } catch (err) {
     if (["Route not found", "Unauthorized"].includes(err.message)) {
       return clientError(res, err.message === "Unauthorized" ? 403 : 404, err.message);
+    }
+    // 🗺️ Errores de validación geográfica
+    if (
+      err.message.includes("Cundinamarca") ||
+      err.message.includes("Universidad") ||
+      err.message.includes("entrada")
+    ) {
+      return clientError(res, 400, err.message);
     }
     if (err.message.includes("pricePerSeat") || err.message.includes("status must")) {
       return clientError(res, 400, err.message);
@@ -181,6 +198,33 @@ exports.getOptimizedRouteDetails = async (req, res) => {
       driverId
     );
     res.json(details);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 🎓 Obtener entradas de la Universidad
+exports.getUniversityEntrances = async (req, res) => {
+  try {
+    const entrances = getUniversityEntrances();
+    res.json({
+      message: "Entradas de la Universidad Nacional de Colombia",
+      entrances,
+      totalEntrances: entrances.length
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 🗺️ Obtener límites de Cundinamarca
+exports.getCundinamarcaBounds = async (req, res) => {
+  try {
+    const boundsInfo = getCundinamarcaBounds();
+    res.json({
+      message: "Límites geográficos del departamento de Cundinamarca",
+      ...boundsInfo
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
