@@ -2,30 +2,37 @@ services:
 
   routes-reservations-service:
     build: .
-    ports:
-      - "4000:4000"
+
+    expose:
+      - "4000"
+
     environment:
       - PORT=4000
       - MONGO_URI=mongodb://mongo:27017/routesdb
       - JWT_SECRET=supersecretkey
+
     depends_on:
       - mongo
+
     networks:
-      - routes-net
+      - internal-services
+      - data-network
 
   mongo:
     image: mongo
-    ports:
-      - "27017:27017"
+
     volumes:
       - mongo-data:/data/db
+
     networks:
-      routes-net:
-        aliases:
-          - mongo
+      - data-network
 
 volumes:
   mongo-data:
 
 networks:
-  routes-net:
+  internal-services:
+    external: true
+
+  data-network:
+    external: true
