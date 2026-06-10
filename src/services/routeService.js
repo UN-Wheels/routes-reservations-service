@@ -193,7 +193,9 @@ exports.deleteRoute = async (routeId, driverId) => {
       origin:             route.origin?.name ?? '',
       destination:        route.destination?.name ?? '',
       affectedPassengers,
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error('[RabbitMQ] route.deleted no publicado:', err?.message || err);
+    });
   }
 
   return { deleted: true, id: routeId };

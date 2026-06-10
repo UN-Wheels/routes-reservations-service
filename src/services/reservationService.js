@@ -46,7 +46,9 @@ exports.requestReservation = async (routeId, passengerId, travelDateInput) => {
     origin:         route.origin?.name ?? '',
     destination:    route.destination?.name ?? '',
     travelDate:     travelDate.toISOString(),
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error('[RabbitMQ] reservation.requested no publicado:', err?.message || err);
+  });
 
   return reservation;
 };
@@ -92,7 +94,9 @@ exports.acceptReservation = async (reservationId, driverId) => {
     origin:         route.origin?.name ?? '',
     destination:    route.destination?.name ?? '',
     travelDate:     reservation.travelDate.toISOString(),
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error('[RabbitMQ] reservation.accepted no publicado:', err?.message || err);
+  });
 
   return reservation;
 };
@@ -123,7 +127,9 @@ exports.rejectReservation = async (reservationId, driverId) => {
     origin:         route.origin?.name ?? '',
     destination:    route.destination?.name ?? '',
     travelDate:     reservation.travelDate.toISOString(),
-  }).catch(() => {});
+  }).catch((err) => {
+    console.error('[RabbitMQ] reservation.rejected no publicado:', err?.message || err);
+  });
 
   return reservation;
 };
