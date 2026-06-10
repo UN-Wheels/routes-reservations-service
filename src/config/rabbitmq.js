@@ -26,9 +26,11 @@ class RabbitMQPublisher {
   async publish(routingKey, payload) {
     // Reconectar si la conexión se perdió
     if (!this.channel) {
-      try { await this.connect(); } catch (err) {
+      try {
+        await this.connect();
+      } catch (err) {
         console.error('[RabbitMQ] No se pudo reconectar:', err.message);
-        return; // Fallo silencioso — no bloquea la respuesta HTTP
+        throw err;
       }
     }
 
@@ -41,6 +43,7 @@ class RabbitMQPublisher {
       console.log(`[RabbitMQ] Publicado: ${routingKey}`);
     } catch (err) {
       console.error('[RabbitMQ] Error publicando:', err.message);
+      throw err;
     }
   }
 }
